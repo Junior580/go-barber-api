@@ -44,7 +44,7 @@ func (c *Crypto) DecryptAESKey(encKeyBase64 string) ([]byte, error) {
 	return aesKey, nil
 }
 
-func (c *Crypto) DecryptPayload(aesKey []byte, ivBase64 string, encDataBase64 string) (map[string]interface{}, error) {
+func (c *Crypto) DecryptPayload(aesKey []byte, ivBase64 string, encDataBase64 string) (map[string]any, error) {
 	iv, _ := base64.StdEncoding.DecodeString(ivBase64)
 	encryptedData, _ := base64.StdEncoding.DecodeString(encDataBase64)
 
@@ -62,12 +62,12 @@ func (c *Crypto) DecryptPayload(aesKey []byte, ivBase64 string, encDataBase64 st
 		decrypted = decrypted[:len(decrypted)-1]
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	err = json.Unmarshal(decrypted, &result)
 	return result, err
 }
 
-func (c *Crypto) EncryptPayload(aesKey []byte, ivBase64 string, payload interface{}) (string, error) {
+func (c *Crypto) EncryptPayload(aesKey []byte, ivBase64 string, payload any) (string, error) {
 	iv, _ := base64.StdEncoding.DecodeString(ivBase64)
 
 	jsonBytes, err := json.Marshal(payload)

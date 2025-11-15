@@ -1,10 +1,9 @@
 package flow
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type FlowHandler struct {
@@ -16,34 +15,40 @@ func NewFlowHandler() (*FlowHandler, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &FlowHandler{
 		Crypto: crypto,
 	}, nil
 }
 
-func (h *FlowHandler) Handle(c *gin.Context) {
+func (h *FlowHandler) Handle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	var req struct {
 		EncryptedFlowData string `json:"encrypted_flow_data"`
 		EncryptedAESKey   string `json:"encrypted_aes_key"`
 		InitialVector     string `json:"initial_vector"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid payload", http.StatusBadRequest)
 		return
 	}
 
-	// 1. DESCRIPTOGRAFAR AES KEY
+	// 1. DESCRYPT AES KEY
 	aesKey, err := h.Crypto.DecryptAESKey(req.EncryptedAESKey)
 	if err != nil {
-		c.JSON(421, gin.H{})
+		w.WriteHeader(421)
 		return
 	}
 
-	// 2. DESCRIPTOGRAFAR PAYLOAD
+	// 2. DECRYPT PAYLOAD
 	payload, err := h.Crypto.DecryptPayload(aesKey, req.InitialVector, req.EncryptedFlowData)
 	if err != nil {
-		c.JSON(421, gin.H{})
+		w.WriteHeader(421)
 		return
 	}
 
@@ -53,80 +58,83 @@ func (h *FlowHandler) Handle(c *gin.Context) {
 		screen = payload["screen"].(string)
 	}
 
-	data := map[string]interface{}{}
+	data := map[string]any{}
 	if payload["data"] != nil {
-		data = payload["data"].(map[string]interface{})
+		data = payload["data"].(map[string]any)
 	}
 
 	flowToken := payload["flow_token"].(string)
 
-	// ----------------------------
-	//   BUSINESS LOGIC DO FLOW
-	// ----------------------------
+	response := map[string]any{}
 
-	response := map[string]interface{}{}
+	// ---------------------------
+	// BUSINESS LOGIC
+	// ---------------------------
 
-	// PRIMEIRA TELA (INIT)
+	// FIRST SCREEN (INIT)
 	if action == "INIT" {
-		response = map[string]interface{}{
+		response = map[string]any{
 			"screen": "SELECT_DAY",
-			"data": map[string]interface{}{
-				"dias": generateDays(),
+			"data": map[string]any{
+				"days": generateDays(),
 			},
 		}
 	}
 
-	// SEGUNDA TELA
+	// SECOND SCREEN
 	if action == "data_exchange" && screen == "SELECT_DAY" {
-		selected := data["dia"].(string)
-		response = map[string]interface{}{
+		selected := data["day"].(string)
+		response = map[string]any{
 			"screen": "SELECT_HOUR",
-			"data": map[string]interface{}{
-				"dia":      selected,
-				"horarios": generateHours(),
+			"data": map[string]any{
+				"day":   selected,
+				"hours": generateHours(),
 			},
 		}
 	}
 
-	// FINALIZAÇÃO
+	// FINALIZATION
 	if action == "data_exchange" && screen == "SELECT_HOUR" {
-		response = map[string]interface{}{
+		response = map[string]any{
 			"screen": "SUCCESS",
-			"data": map[string]interface{}{
-				"extension_message_response": map[string]interface{}{
-					"params": map[string]interface{}{
+			"data": map[string]any{
+				"extension_message_response": map[string]any{
+					"params": map[string]any{
 						"flow_token": flowToken,
-						"dia":        data["dia"],
-						"horario":    data["horario"],
+						"day":        data["day"],
+						"hour":       data["hour"],
 					},
 				},
 			},
 		}
 	}
 
-	// 3. CRIPTOGRAFAR RESPOSTA
+	// 3. ENCRYPT RESPONSE
 	encrypted, err := h.Crypto.EncryptPayload(aesKey, req.InitialVector, response)
 	if err != nil {
-		c.JSON(500, gin.H{})
+		http.Error(w, "internal server error", 500)
 		return
 	}
 
-	c.JSON(200, gin.H{
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"encrypted_flow_data": encrypted,
-	})
+	}); err != nil {
+		http.Error(w, "failed to encode JSON", http.StatusInternalServerError)
+		return
+	}
 }
 
 func generateDays() []map[string]string {
 	days := []map[string]string{}
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		d := time.Now().AddDate(0, 0, i)
 		days = append(days, map[string]string{
 			"id":    d.Format("2006-01-02"),
 			"title": d.Format("02/01/2006"),
 		})
 	}
-
 	return days
 }
 
