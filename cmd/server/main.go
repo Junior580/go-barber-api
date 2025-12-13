@@ -1,32 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"net/http"
 	"os"
 
-	"github.com/Junior580/go-barber-api/internal/whatsapp/handlers"
+	"github.com/Junior580/go-barber-api/configs"
 )
 
 func main() {
-	http.HandleFunc("/webhook", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			handlers.VerifyWebhook(w, r)
-		case http.MethodPost:
-			handlers.ReceiveMessage(w, r)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	http.HandleFunc("/available-days", handlers.AvailableDays)
-	http.HandleFunc("/available-hours", handlers.GetAvailableHours)
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	env, err := configs.LoadConfig("../../")
+	if err != nil {
+		log.Print(err)
 	}
-	log.Printf("Server started on port %s 🚀", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	pemBytes, err := os.ReadFile(env.PRIVATE_KEY_PATH)
+	pemContent := string(pemBytes)
+	if err != nil {
+		log.Fatalf("erro ao ler private key: %v", err)
+	}
+	fmt.Printf("privateKey: %v - passphrase: %v \n", env.PASSPHRASE, pemContent)
 }
