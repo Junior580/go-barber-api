@@ -7,6 +7,8 @@ import (
 type conf struct {
 	META_ACCESS_TOKEN string `mapstructure:"META_ACCESS_TOKEN"`
 	NGROK_AUTH        string `mapstructure:"NGROK_AUTH"`
+	PRIVATE_KEY_PATH  string `mapstructure:"PRIVATE_KEY_PATH"`
+	PASSPHRASE        string `mapstructure:"PASSPHRASE"`
 	// DBDriver          string `mapstructure:"DB_DRIVER"`
 	// DBHost            string `mapstructure:"DB_HOST"`
 	// DBPort            string `mapstructure:"DB_PORT"`
