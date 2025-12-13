@@ -28,6 +28,9 @@ WORKDIR /app
 # Copia o binário gerado
 COPY --from=builder /app/server .
 
+COPY private.pem .
+COPY public.pem .
+
 # Define variáveis de ambiente padrão
 ENV PORT=8080
 EXPOSE 8080
