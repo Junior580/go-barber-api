@@ -28,16 +28,17 @@ type endpointPayload struct {
 }
 
 type decryptionResult struct {
-	DecryptedBody      map[string]interface{}
+	DecryptedBody      map[string]any
 	AESKeyBytes        []byte
 	InitialVectorBytes []byte
 }
 
 func main() {
-	env, err := configs.LoadConfig("../../")
+	env, err := configs.LoadConfig()
 	if err != nil {
-		log.Print(err)
+		log.Fatalf("❌ error load env file: %v", err)
 	}
+
 	pemBytes, err := os.ReadFile(env.PRIVATE_KEY_PATH)
 	privateKey := string(pemBytes)
 	passphrase := env.PASSPHRASE
@@ -94,9 +95,16 @@ func processRequestHTTP(r *http.Request, privateKey, passphrase string) (string,
 		log.Println("Action:", action)
 	}
 
-	response := map[string]interface{}{
-		"screen": "SCREEN_NAME",
-		"data":   map[string]string{"some_key": "some_value"},
+	// screen := "START" // fallback
+
+	// if action == "ping" {
+	// 	screen = "PING" // TEM que existir no Flow JSON
+	// }
+
+	response := map[string]any{
+		"data": map[string]any{
+			"status": "active",
+		},
 	}
 
 	return encryptResponse(
@@ -104,6 +112,17 @@ func processRequestHTTP(r *http.Request, privateKey, passphrase string) (string,
 		decrypted.AESKeyBytes,
 		decrypted.InitialVectorBytes,
 	)
+
+	// response := map[string]any{
+	// 	"screen": "SCREEN_NAME",
+	// 	"data":   map[string]string{"some_key": "some_value"},
+	// }
+
+	// return encryptResponse(
+	// 	response,
+	// 	decrypted.AESKeyBytes,
+	// 	decrypted.InitialVectorBytes,
+	// )
 }
 
 func decryptRequest(encryptedAESKey string, encryptedFlowData string, initialVector string, privatePem string, passphrase string) (decryptionResult, error) {
@@ -148,7 +167,7 @@ func decryptRequest(encryptedAESKey string, encryptedFlowData string, initialVec
 		return decryptionResult{}, err
 	}
 
-	var decryptedBody map[string]interface{}
+	var decryptedBody map[string]any
 	if err := json.Unmarshal(decryptedPlaintext, &decryptedBody); err != nil {
 		return decryptionResult{}, err
 	}
@@ -160,7 +179,7 @@ func decryptRequest(encryptedAESKey string, encryptedFlowData string, initialVec
 	}, nil
 }
 
-func encryptResponse(response map[string]interface{}, aesKeyBytes, initialVectorBytes []byte) (string, error) {
+func encryptResponse(response map[string]any, aesKeyBytes, initialVectorBytes []byte) (string, error) {
 	flippedIV := make([]byte, len(initialVectorBytes))
 	for i, b := range initialVectorBytes {
 		flippedIV[i] = ^b

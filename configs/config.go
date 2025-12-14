@@ -1,7 +1,8 @@
 package configs
 
 import (
-	"github.com/spf13/viper"
+	"fmt"
+	"os"
 )
 
 type conf struct {
@@ -21,22 +22,26 @@ type conf struct {
 	// TokenAuth         *jwtauth.JWTAuth
 }
 
-func LoadConfig(path string) (*conf, error) {
-	var cfg *conf
+func LoadConfig() (*conf, error) {
+	config := &conf{
+		META_ACCESS_TOKEN: os.Getenv("META_ACCESS_TOKEN"),
+		NGROK_AUTH:        os.Getenv("NGROK_AUTH"),
+		PRIVATE_KEY_PATH:  os.Getenv("PRIVATE_KEY_PATH"),
+		PASSPHRASE:        os.Getenv("PASSPHRASE"),
+	}
 
-	viper.SetConfigName("app_config")
-	viper.SetConfigType("env")
-	viper.AddConfigPath(path)
-	viper.SetConfigFile(".env")
-	viper.AutomaticEnv()
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(err)
+	required := map[string]string{
+		"META_ACCESS_TOKEN": config.META_ACCESS_TOKEN,
+		"NGROK_AUTH":        config.NGROK_AUTH,
+		"PRIVATE_KEY_PATH":  config.PRIVATE_KEY_PATH,
+		"PASSPHRASE":        config.PASSPHRASE,
 	}
-	err = viper.Unmarshal(&cfg)
-	if err != nil {
-		panic(err)
+
+	for name, value := range required {
+		if value == "" {
+			return nil, fmt.Errorf("missing required environment variable: %s", name)
+		}
 	}
-	// cfg.TokenAuth = jwtauth.New("HS256", []byte(cfg.JWTSecret), nil)
-	return cfg, err
+
+	return config, nil
 }

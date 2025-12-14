@@ -2,18 +2,17 @@ services:
   app:
     build: .
     container_name: barber-api
-    environment:
-      - WHATSAPP_VERIFY_TOKEN=
-      - PORT=8080
+    env_file:
+      - .env
     expose:
-      - "8080"
+      - "3000"
     networks:
       - internal_net
 
   ngrok:
     image: ngrok/ngrok:latest
     container_name: ngrok
-    command: http --domain=decent-happily-herring.ngrok-free.app app:8080
+    command: http --domain=decent-happily-herring.ngrok-free.app app:3000
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTH}
     extra_hosts:
